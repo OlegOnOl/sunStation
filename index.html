@@ -6,5 +6,21 @@
   <body>
     <h1>Привіт, світе!</h1>
     <p>Ласкаво прошу на мій сайт.</p>
+    <p id="output">Тут з'явиться текст...</p>
+
+    <script>
+      // Отримуємо поточний URL
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Отримуємо значення параметра "text"
+      const textFromUrl = urlParams.get('text');
+      
+      // Якщо параметр існує - показуємо його на сторінці
+      if (textFromUrl) {
+        document.getElementById('output').textContent = textFromUrl;
+        document.title = textFromUrl; // Міняємо заголовок вкладки
+      }
+    </script>
+    
   </body>
 </html>
