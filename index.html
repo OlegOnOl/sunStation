@@ -1,26 +1,493 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Мій сайт</title>
-  </head>
-  <body>
-    <h1>Привіт, світе!</h1>
-    <p>Ласкаво прошу на мій сайт.</p>
-    <p id="output">Тут з'явиться текст...</p>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+</head>
+
+<body>
+    <style>
+        * {
+    margin: 0;
+    padding: 0;
+        }
+        .sun-container {
+            width: max-content;
+            /* контейнер стискається до реальної ширини блоків */
+            margin: 10px auto;
+            /* по центру сторінки */
+            display: grid;
+            grid-template-columns: repeat(4, 260px);
+            grid-gap: 15px;
+        }
+
+        .indikator {
+            /* padding-top: 10px;
+            padding-bottom: 10px; */
+            padding: 10px;
+            background-color: rgb(230, 230, 230);
+            border-radius: 15px;
+
+        }
+        .smallText{
+            display: flex;
+            align-items: center;
+            justify-content:center;
+            font-size: 14px;
+        }
+
+        .Progress {
+            background-color: rgb(222, 216, 216);
+            border-radius: .375rem;
+            outline: solid 1px #0000;
+            outline-offset: -1px;
+            /* height: 8px; */
+            width: 100%;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .smallProgress{
+            height: 4px;
+        }
+
+        .bigText{
+            display: flex;
+            align-items: center;
+            justify-content:center;
+            font-size: 28px;
+        }
+        .bigProgress{
+            height: 8px;
+        }
+
+
+
+
+/* 
+        .progresLine {
+            display: flex;
+            align-items: center;
+            background-color: #c9ccd0;
+        }
+
+        .progresLine p {
+            width: 30%;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .small {
+            margin-top: 10px;
+            height: 4px;
+        }
+
+        .small p {
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        
+
+        .Progress span {
+            display: block;
+           
+            height: 100%;
+            border-radius: inherit;
+        } */
+    </style>
+    <div class="sun-container">
+        <!-- <div class="indikator">
+            <p class="bigText">Сонячне поле</p>
+
+            <div class="line_1">
+                <div class="smallText">
+                <p style="margin-right: 5px;">PV 1</p>
+                <p style="margin-left: 5px;">1000 Bt</p></div>
+                <span class="Progress smallProgress">
+                    <span style="background-color:#e34c26 !important;;width: 82.4%;"></span>
+                </span>
+            </div>
+            <div class="line_2">
+                <div class="smallText">
+                <p style="margin-right: 5px;">PV 2</p>
+                <p style="margin-left: 5px;">2000 Bt</p></div>
+                <span class="Progress smallProgress">
+                    <span style="background-color:#e34c26 !important;;width: 82.4%;"></span>
+                </span>
+            </div>
+
+            <div class="line_3">
+                <div class="bigText">
+                <p style="margin-right: 5px;">PV</p>
+                <p style="margin-left: 5px;">3000 Bt</p></div>
+                <span class="Progress bigProgress">
+                    <span style="background-color:#e34c26 !important;;width: 82.4%;"></span>
+                </span>
+            </div>
+        </div> -->
+    </div>
+
+    <canvas id="myChart" style="background-color: white;"></canvas>
+    <div id="tooltip-area" style="font-size: 14px; color: black;background-color:white; "></div>
 
     <script>
-      // Отримуємо поточний URL
-      const urlParams = new URLSearchParams(window.location.search);
-      
-      // Отримуємо значення параметра "text"
-      const textFromUrl = urlParams.get('text');
-      
-      // Якщо параметр існує - показуємо його на сторінці
-      if (textFromUrl) {
-        document.getElementById('output').textContent = textFromUrl;
-        document.title = textFromUrl; // Міняємо заголовок вкладки
-      }
+        const params = new URLSearchParams(window.location.search);
+        const url_value = params.get('key');
+
+        // const baseUrl = "https://mysun-8b204-default-rtdb.europe-west1.firebasedatabase.app/";
+        const baseUrl = "https://"+url_value+".europe-west1.firebasedatabase.app/";
+        const urlRele = `${baseUrl}sensors.json`;
+
+        const parent = document.querySelector('.sun-container');
+
+        const titleBlock = ['Сонячне поле','Міська мережа','Батарея','Навантаження','Бойлер'];
+        const titleLine_1start = ['PV 1','','','',''];
+        const titleLine_1end = ['','','','',''];
+        const titleLine_2start = ['PV 2','','','',''];
+        const titleLine_2end = ['','','B','',''];
+        const titleLine_3start = ['','','','',''];
+        const titleLine_3end = ['Вт','Вт','%','Вт','°C'];
+        const baseColor = ['rgb(247, 189, 82)', 'rgba(106, 106, 10, 1)', 'rgba(23, 167, 55,1)', 'rgba(82, 99, 247,1)', 'rgb(220, 82, 247)'];
+
+        let lastLine = 0;
+        let lastLineB = 0;
+
+        fetch(urlRele)
+            .then(res => res.json())
+            .then(data => {
+                lastLine = data.lastline.split(',').map((v, i) => i === 0 ? v : Number(v));
+                lastLineB = data.lastline_b.split(',').map((v, i) => i === 0 ? v : Number(v));
+                buildIndikator(lastLine,lastLineB);
+                sun_chart(data);
+
+            });
+
+
+        function buildIndikator(lastLine,lastLineB) {
+
+            let boiler_state = 'аварія';
+            if(lastLineB[2]=='30'){boiler_state='колонка'};
+            if(lastLineB[2]=='60'){boiler_state='бойлер'};
+
+        let val_line_1 = [lastLine[5]+' Вт,      '+Number(lastLine[6])/10+' В,      '+Number(lastLine[7])/10+' A',          //PV 1
+                          Number(lastLine[14])<25 && 'Вимкнено' || ' . ',
+                          Number(lastLine[2])>0 && 'Розряд '+(Number(lastLine[2]) / 100)+' A,      '+lastLine[3]+' Вт' || 'Заряд '+ (Number(lastLine[2]) / 100)+' A,      '+lastLine[3]+' Вт',      //струм батарея
+                          ' . ',
+                          boiler_state
+                        ];
+        let val_line_2 = [lastLine[8]+' Вт,      '+Number(lastLine[9])/10+' В,      '+Number(lastLine[10])/10+' A',
+                          ' . ',(Number(lastLine[1]) / 100),' . ','діммер '+lastLineB[4]];
+        let val_line_3 = [(Number(lastLine[5]) + Number(lastLine[8])),lastLine[13],lastLine[4],lastLine[18],lastLineB[1]];
+
+        let progress_line_1 = [Number(lastLine[5])*100/4500,    //PV 1
+                                0,
+                                Number(lastLine[2])>0 && Number(lastLine[2])/100 || Number(lastLine[2])*(-0.01),            //струм батарея
+                                0,
+                                0
+                            ];
+        let progress_line_2 = [Number(lastLine[8])*100/4500,0,(Number(lastLine[1])/100-45.6)*100/12,0,(255-Number(lastLineB[4]))*100/255];
+        let progress_line_3 = [(Number(lastLine[5]) + Number(lastLine[8]))*100/4500,
+                                Number(lastLine[13])*100/5000,
+                                Number(lastLine[4]),
+                                Number(lastLine[18])*100/6000,
+                                (Number(lastLineB[1])-35)*100/40];
+
+        for (let i = 0; i < 5; i++) {
+            const template = `
+                <div class="indikator">
+                    <p class="bigText">${titleBlock[i]}</p>
+
+                    <div class="line_1">
+                        <div class="smallText">
+                            <p style="margin-right: 5px;">${titleLine_1start[i]}</p>
+                            <p style="margin-left: 5px;">${val_line_1[i]}</p>
+                            <p style="margin-left: 5px;">${titleLine_1end[i]}</p>
+                        </div>
+                        <span class="Progress smallProgress">
+                            <span style="background-color:${baseColor[i]} !important;;width: ${progress_line_1[i]}%;"></span>
+                        </span>
+                    </div>
+                    <div class="line_2">
+                        <div class="smallText">
+                            <p style="margin-right: 5px;">${titleLine_2start[i]}</p>
+                            <p style="margin-left: 5px;">${val_line_2[i]}</p>
+                            <p style="margin-left: 5px;">${titleLine_2end[i]}</p>
+                        </div>
+                        <span class="Progress smallProgress">
+                            <span style="background-color:${baseColor[i]} !important;;width: ${progress_line_2[i]}%;"></span>
+                        </span>
+                    </div>
+
+                    <div class="line_3">
+                        <div class="bigText">
+                            <p style="margin-right: 5px;">${titleLine_3start[i]}</p>
+                            <p style="margin-left: 5px;">${val_line_3[i]}</p>
+                            <p style="margin-left: 5px;">${titleLine_3end[i]}</p>
+                        </div>
+                        <span class="Progress bigProgress">
+                            <span style="background-color:${baseColor[i]} !important;;width: ${progress_line_3[i]}%;"></span>
+                        </span>
+                    </div>
+                </div>
+            `;
+            parent.insertAdjacentHTML('beforeend', template);
+        }
+        }
     </script>
-    
-  </body>
+
+    <script>//----------------------------Графіки ---------------------------------------------------------
+
+
+        function sun_chart(data) {
+            const timeLabels = data.val_time.split(',').map(v =>v.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/,"$1-$2-$3T$4:$5:$6"));
+            let bat_soc = data.val_bat_soc.split(',').map(v => Number(v));
+            let grid_power = data.val_grid_power.split(',').map(v => Number(v));
+            let load_power = data.val_load_power.split(',').map(v => Number(v));
+            let pv1_power = data.val_pv1_power.split(',').map(v => Number(v));
+            let pv2_power = data.val_pv2_power.split(',').map(v => Number(v));
+            let boiler_temperature = data.val_boiler_temperature.split(',').map(v => Number(v));
+            let boiler_state = data.val_boileg_state.split(',').map(v => Number(v));
+
+
+
+            // Перетворюємо формат 20251210T101242 → ISO 2025-12-10T10:12:42
+            const bat_soc_points = timeLabels.map((t, i) => {
+                return { x: t.trim(), y: Number(bat_soc[i]) };
+            });
+            const pv1_power_points = timeLabels.map((t, i) => {
+                return { x: t.trim(), y: Number(pv1_power[i]) };
+            });
+            const pv2_power_points = timeLabels.map((t, i) => {
+                return { x: t.trim(), y: Number(pv2_power[i]) };
+            });
+            const pv_power_points = timeLabels.map((t, i) => {
+                return { x: t.trim(), y: (Number(pv1_power[i]) + Number(pv2_power[i])) };
+            });
+            const grid_power_points = timeLabels.map((t, i) => {
+                return { x: t.trim(), y: Number(grid_power[i]) };
+            });
+            const load_power_points = timeLabels.map((t, i) => {
+                return { x: t.trim(), y: Number(load_power[i]) };
+            });
+            const boiler_temperature_points = timeLabels.map((t, i) => {
+                return { x: t.trim(), y: Number(boiler_temperature[i]) };
+            });
+            const boiler_state_points = timeLabels.map((t, i) => {
+                return { x: t.trim(), y: Number(boiler_state[i]) };
+            });
+
+            const externalTooltipHandler = (context) => {
+                const tooltipModel = context.tooltip;
+                const tooltipArea = document.getElementById('tooltip-area');
+                const chart = context.chart;
+
+                const points = tooltipModel.dataPoints;
+
+                // загальний час (для всіх графіків однакова позиція)   
+                const date = new Date(points[0].raw.x);
+
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+
+                let html = `<strong>Час: ${hours}:${minutes}</strong><br>`;
+
+                html += `    <table style='width: 100%; border-collapse: collapse;'> 
+                    <tr>`;
+
+                points.forEach(p => {
+                    const dataset = p.dataset;
+
+                    // ID відповідної осі, наприклад 'y', 'y1', 'y2'
+                    const axisId = dataset.yAxisID || 'y';
+
+                    // текст заголовка осі:
+                    const unit = chart.options.scales[axisId]?.title?.text || "";
+
+
+
+                    html += `
+            <td style="text-align: left; color:${dataset.borderColor}">${dataset.label}: ${p.formattedValue} ${unit}</td>
+            
+        `;
+                });
+                html += `</tr></table> `;
+
+
+                tooltipArea.innerHTML = html;
+            };
+
+
+
+
+            new Chart(document.getElementById("myChart"), {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Батарея',
+                            data: bat_soc_points,
+                            borderColor: 'rgba(23, 167, 55, 1)',
+                            backgroundColor: 'rgba(23, 167, 55, 1)',
+                            borderWidth: 2,
+                            tension: 0,
+                            pointRadius: 0.5,
+                            yAxisID: 'y2'
+                        },
+                        {
+                            label: 'Поле 1',
+                            data: pv1_power_points,
+                            borderColor: 'rgb(247, 189, 82)',
+                            backgroundColor: 'rgb(247, 189, 82)',
+                            borderWidth: 2,
+                            tension: 0,
+                            pointRadius: 0.5,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Поле 2',
+                            data: pv2_power_points,
+                            borderColor: 'rgba(158, 205, 6, 1)',
+                            backgroundColor: 'rgba(158, 205, 6, 1)',
+                            borderWidth: 2,
+                            tension: 0,
+                            pointRadius: 0.5,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Генерація',
+                            data: pv_power_points,
+                            borderColor: 'rgba(207, 27, 14, 1)',
+                            backgroundColor: 'rgba(207, 27, 14, 1)',
+                            borderWidth: 2,
+                            tension: 0,
+                            pointRadius: 0.5,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Мережа',
+                            data: grid_power_points,
+                            borderColor: 'rgb(57, 57, 57)',
+                            backgroundColor: 'rgb(57, 57, 57)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointRadius: 0.5,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Споживання',
+                            data: load_power_points,
+                            borderColor: 'rgba(82, 99, 247, 1)',
+                            backgroundColor: 'rgba(82, 99, 247, 1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointRadius: 0.5,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Бойлер',
+                            data: boiler_temperature_points,
+                            borderColor: 'rgb(220, 82, 247)',
+                            backgroundColor: 'rgb(220, 82, 247)',
+                            borderWidth: 2,
+                            tension: 0,
+                            pointRadius: 0.5,
+                            yAxisID: 'y2'
+                        },
+                        {
+                            label: 'Кран',
+                            data: boiler_state_points,
+                            borderColor: 'rgb(225, 28, 172)',
+                            backgroundColor: 'rgb(225, 28, 172)',
+                            borderWidth: 2,
+                            tension: 0,
+                            pointRadius: 0.5,
+                            yAxisID: 'y2'
+                        }
+
+                    ]
+                },
+                options: {
+                    parsing: {
+                        xAxisKey: 'x',
+                        yAxisKey: 'y'
+                    },
+                    scales: {
+                        x: { type: 'time' },
+
+                        y1: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: false,
+                            title: { display: true, text: 'Вт' }
+                        },
+                        y2: {
+                            type: 'linear',
+                            min: 0,
+                            max: 110,
+                            position: 'left',
+                            beginAtZero: false,
+                            title: { display: true, text: '%' },
+                            grid: { drawOnChartArea: false } // сітку y2 не малюємо на фоні
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        tooltip: {
+                            //    callbacks: {
+                            //        // Верхній рядок tooltip — X (час)
+                            //       title: function(context) {
+                            //           const rawX = context[0].raw.x; // ISO рядок
+                            //           const date = new Date(rawX);
+
+                            //           const hours = String(date.getHours()).padStart(2, '0');
+                            //           const minutes = String(date.getMinutes()).padStart(2, '0');
+
+                            //           return `${hours}:${minutes}`; // тільки HH:mm
+                            //       },
+                            //       // Нижні рядки tooltip — значення Y
+                            //       label: function(context) {
+                            //          const yValue = context.raw.y;
+                            //           const yAxisID = context.dataset.yAxisID; // отримуємо ось Y для цього dataset
+                            //           const unit = context.chart.options.scales[yAxisID].title.text || ''; // беремо текст заголовка осі
+                            //           return `${context.dataset.label}: ${yValue} ${unit}`;
+                            //       }
+                            //    }
+                            enabled: false,          // вимикаємо стандартний tooltip
+                            external: externalTooltipHandler
+                        },
+                        legend: {
+                            labels: {
+                                usePointStyle: true,    // використовуємо pointStyle замість квадратів
+                                pointStyle: 'line',     // замість квадрата лінія
+                                lineWidth: 4,           // товщина лінії
+                                color: 'black',         // колір тексту
+                                generateLabels: function (chart) {
+                                    return chart.data.datasets.map((dataset, i) => ({
+                                        text: dataset.label,
+                                        datasetIndex: i,
+                                        hidden: !chart.isDatasetVisible(i),
+                                        pointStyle: 'line',
+                                        strokeStyle: dataset.borderColor,
+                                        lineWidth: 4
+                                    }));
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }// ==============================================================================================================
+    </script>
+</body>
+
 </html>
