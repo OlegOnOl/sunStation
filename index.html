@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Sun Energy</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
@@ -25,6 +25,12 @@
             display: grid;
             grid-template-columns: repeat(4, 260px);
             grid-gap: 15px;
+        }
+        .sun-title {
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
         }
 
         .indikator {
@@ -73,9 +79,71 @@
                 /* 2 колонки по 150px */
             }
         }
+
+
+
+/* 
+        .progresLine {
+            display: flex;
+            align-items: center;
+            background-color: #c9ccd0;
+        }
+
+        .progresLine p {
+            width: 30%;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .small {
+            margin-top: 10px;
+            height: 4px;
+        }
+
+        .small p {
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        
+
+        .Progress span {
+            display: block;
+           
+            height: 100%;
+            border-radius: inherit;
+        } */
     </style>
     <div class="sun-container">
-        
+        <!-- <div class="indikator">
+            <p class="bigText">Сонячне поле</p>
+
+            <div class="line_1">
+                <div class="smallText">
+                <p style="margin-right: 5px;">PV 1</p>
+                <p style="margin-left: 5px;">1000 Bt</p></div>
+                <span class="Progress smallProgress">
+                    <span style="background-color:#e34c26 !important;;width: 82.4%;"></span>
+                </span>
+            </div>
+            <div class="line_2">
+                <div class="smallText">
+                <p style="margin-right: 5px;">PV 2</p>
+                <p style="margin-left: 5px;">2000 Bt</p></div>
+                <span class="Progress smallProgress">
+                    <span style="background-color:#e34c26 !important;;width: 82.4%;"></span>
+                </span>
+            </div>
+
+            <div class="line_3">
+                <div class="bigText">
+                <p style="margin-right: 5px;">PV</p>
+                <p style="margin-left: 5px;">3000 Bt</p></div>
+                <span class="Progress bigProgress">
+                    <span style="background-color:#e34c26 !important;;width: 82.4%;"></span>
+                </span>
+            </div>
+        </div> -->
     </div>
 
     <canvas id="myChart" style="background-color: white;"></canvas>
@@ -115,6 +183,18 @@
 
 
         function buildIndikator(lastLine,lastLineB) {
+
+            const update_date_iso = lastLine[0].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/, "$1-$2-$3T$4:$5:$6");
+            const update_date = new Date(update_date_iso);
+
+            const update_hours = String(update_date.getHours()).padStart(2, '0');
+            const update_minutes = String(update_date.getMinutes()).padStart(2, '0');
+
+            //const parent_update_time = document.querySelector('.sun-container');
+            const update_time_template = `<h2 class="sun-title">Час оновлення: ${update_hours}:${update_minutes}</h2>`;
+            parent.insertAdjacentHTML('beforeBegin', update_time_template);
+
+
 
             let boiler_state = 'аварія';
             if(lastLineB[2]=='30'){boiler_state='колонка'};
@@ -387,7 +467,25 @@
                     },
                     plugins: {
                         tooltip: {
-                            
+                            //    callbacks: {
+                            //        // Верхній рядок tooltip — X (час)
+                            //       title: function(context) {
+                            //           const rawX = context[0].raw.x; // ISO рядок
+                            //           const date = new Date(rawX);
+
+                            //           const hours = String(date.getHours()).padStart(2, '0');
+                            //           const minutes = String(date.getMinutes()).padStart(2, '0');
+
+                            //           return `${hours}:${minutes}`; // тільки HH:mm
+                            //       },
+                            //       // Нижні рядки tooltip — значення Y
+                            //       label: function(context) {
+                            //          const yValue = context.raw.y;
+                            //           const yAxisID = context.dataset.yAxisID; // отримуємо ось Y для цього dataset
+                            //           const unit = context.chart.options.scales[yAxisID].title.text || ''; // беремо текст заголовка осі
+                            //           return `${context.dataset.label}: ${yValue} ${unit}`;
+                            //       }
+                            //    }
                             enabled: false,          // вимикаємо стандартний tooltip
                             external: externalTooltipHandler
                         },
